@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Rita vs Cattive Decisioni</title>
+  <style>
+    :root{
+      --pink-0:#ffe6f2;
+      --pink-1:#ffd1e8;
+      --pink-2:#ffb3db;
+      --pink-3:#ff7fc5;
+      --pink-4:#ff4fb1;
+      --ink:#3b0b2a;
+      --white:#fff;
+    }
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body{ height:100%; margin:0; background:var(--pink-0); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color:var(--ink); }
+    #wrap{ position:fixed; inset:0; display:flex; align-items:stretch; justify-content:center; }
+    canvas{ width:100%; height:100%; display:block; touch-action:none; }
+
+    /* Overlay UI */
+    .overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:18px; }
+    .card{ width:min(520px, 92vw); border-radius:22px; padding:18px 18px 16px; background:rgba(255,255,255,0.85); box-shadow: 0 12px 40px rgba(59,11,42,0.18); border: 2px solid rgba(255,79,177,0.25); backdrop-filter: blur(6px); }
+    .title{ font-weight:900; letter-spacing:0.3px; font-size:22px; margin:0 0 8px; }
+    .sub{ margin:0 0 14px; line-height:1.35; font-size:14px; }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    button{ appearance:none; border:0; border-radius:16px; padding:12px 14px; font-weight:800; cursor:pointer; background: linear-gradient(180deg, var(--pink-3), var(--pink-4)); color:white; box-shadow: 0 10px 22px rgba(255,79,177,0.30); }
+    button:active{ transform: translateY(1px); }
+    .ghost{ background: rgba(255,79,177,0.12); color: var(--ink); box-shadow:none; border: 2px solid rgba(255,79,177,0.22); }
+    .tiny{ font-size:12px; opacity:0.85; margin-top:12px; }
+
+    /* Top HUD */
+    #hud{
+      position:fixed; left:10px; right:10px; top:10px;
+      display:flex; align-items:center; justify-content:space-between;
+      pointer-events:none;
+    }
+    .hudBox{ pointer-events:auto; display:flex; align-items:center; gap:10px; }
+    .pill{
+      background: rgba(255,255,255,0.70);
+      border: 2px solid rgba(255,79,177,0.18);
+      border-radius: 999px;
+      padding: 8px 10px;
+      box-shadow: 0 10px 20px rgba(59,11,42,0.10);
+      backdrop-filter: blur(6px);
+      display:flex; align-items:center; gap:10px;
+    }
+    .pill small{ opacity:0.8; font-weight:700; }
+    .hearts{ display:flex; gap:4px; }
+    .heart{ width:16px; height:16px; display:inline-block; }
+    .bar{ width:min(220px, 46vw); height:12px; border-radius:999px; background: rgba(59,11,42,0.08); overflow:hidden; border: 2px solid rgba(255,79,177,0.18); }
+    .bar > i{ display:block; height:100%; width:0%; background: linear-gradient(90deg, var(--pink-3), var(--pink-4)); }
+    .btnMini{ pointer-events:auto; border-radius:999px; padding:8px 10px; font-weight:900; font-size:12px; }
+
+    /* Boss bar */
+    #bossBar{
+      position:fixed; left:10px; right:10px; top:56px;
+      display:none; align-items:center; gap:10px; pointer-events:none;
+    }
+    #bossName{ font-weight:900; background: rgba(255,255,255,0.70); border:2px solid rgba(255,79,177,0.18);
+      border-radius:999px; padding:6px 10px; backdrop-filter: blur(6px); }
+    #bossHp{ flex:1; height:12px; border-radius:999px; background: rgba(59,11,42,0.10); overflow:hidden; border:2px solid rgba(255,79,177,0.18);
+      box-shadow: 0 10px 18px rgba(59,11,42,0.08);
+    }
+    #bossHp > i{ display:block; height:100%; width:0%; background: linear-gradient(90deg, #ff4fb1, #ff1f9c); }
+
+    /* Hidden by default */
+    #menu, #pauseMenu, #gameOver{ display:none; }
+  </style>
+</head>
+<body>
+  <div id="wrap"><canvas id="c"></canvas></div>
+
+  <div id="hud">
+    <div class="hudBox">
+      <div class="pill">
+        <strong>Rita</strong>
+        <small>Score: <span id="score">0</span></small>
+      </div>
+      <div class="pill">
+        <small>Vita</small>
+        <div class="hearts" id="hearts"></div>
+      </div>
+    </div>
+    <div class="hudBox">
+      <div class="pill">
+        <small>LEGO</small>
+        <div class="bar"><i id="legoFill"></i></div>
+      </div>
+      <button class="btnMini ghost" id="btnSound" aria-label="Audio">🔈</button>
+      <button class="btnMini ghost" id="btnPause" aria-label="Pausa">⏸</button>
+    </div>
+  </div>
+
+  <div id="bossBar">
+    <div id="bossName">Boss</div>
+    <div id="bossHp"><i id="bossHpFill"></i></div>
+  </div>
+
+  <div class="overlay" id="menu">
+    <div class="card">
+      <h1 class="title">Rita vs Cattive Decisioni</h1>
+      <p class="sub">
+        Rita (ragazza paffuta di Firenze che vive da sola) guida il suo gatto: con il dito lo sposti e lui spara palle di pelo alle cattive decisioni.
+        I boss fanno fuoco di risposta. Prendi i mattoncini LEGO per caricare un colpo speciale.
+      </p>
+      <div class="row">
+        <button id="start">Start</button>
+        <button class="ghost" id="how">Istruzioni</button>
+      </div>
+      <p class="tiny">Tip: l’audio parte solo dopo un tocco (regola dei browser mobile).</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="pauseMenu">
+    <div class="card">
+      <h2 class="title">Pausa</h2>
+      <div class="row">
+        <button id="resume">Riprendi</button>
+        <button class="ghost" id="restart1">Ricomincia</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="gameOver">
+    <div class="card">
+      <h2 class="title">Game Over</h2>
+      <p class="sub">Score finale: <strong id="finalScore">0</strong></p>
+      <div class="row">
+        <button id="restart2">Riprova</button>
+        <button class="ghost" id="backMenu">Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    'use strict';
+
+    // ---------- Canvas / scaling ----------
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    const HUD = {
+      scoreEl: document.getElementById('score'),
+      heartsEl: document.getElementById('hearts'),
+      legoFillEl: document.getElementById('legoFill'),
+      bossBar: document.getElementById('bossBar'),
+      bossName: document.getElementById('bossName'),
+      bossHpFill: document.getElementById('bossHpFill'),
+      btnPause: document.getElementById('btnPause'),
+      btnSound: document.getElementById('btnSound'),
+    };
+
+    const UI = {
+      menu: document.getElementById('menu'),
+      pause: document.getElementById('pauseMenu'),
+      over: document.getElementById('gameOver'),
+      start: document.getElementById('start'),
+      how: document.getElementById('how'),
+      resume: document.getElementById('resume'),
+      restart1: document.getElementById('restart1'),
+      restart2: document.getElementById('restart2'),
+      backMenu: document.getElementById('backMenu'),
+      finalScore: document.getElementById('finalScore'),
+    };
+
+    const DPR = () => Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    let W = 0, H = 0, dpr = DPR();
+
+    function resize() {
+      dpr = DPR();
+      const cssW = Math.floor(window.innerWidth);
+      const cssH = Math.floor(window.innerHeight);
+      canvas.width = Math.floor(cssW * dpr);
+      canvas.height = Math.floor(cssH * dpr);
+      canvas.style.width = cssW + 'px';
+      canvas.style.height = cssH + 'px';
+      W = canvas.width; H = canvas.height;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resize, { passive: true });
+
+    // ---------- Audio (Web Audio, no external assets) ----------
+    let audioCtx = null;
+    let audioEnabled = true;
+    let musicEnabled = true;
+    let musicNode = null;
+    let musicGain = null;
+    let sfxGain = null;
+
+    function ensureAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      musicGain = audioCtx.createGain();
+      sfxGain = audioCtx.createGain();
+      musicGain.gain.value = 0.12;
+      sfxGain.gain.value = 0.18;
+      musicGain.connect(audioCtx.destination);
+      sfxGain.connect(audioCtx.destination);
+      startMusic();
+    }
+
+    function beep({ freq=440, dur=0.08, type='sine', gain=0.2, slide=0, when=0 }){
+      if (!audioCtx || !audioEnabled) return;
+      const t0 = audioCtx.currentTime + when;
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0);
+      if (slide) osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t0 + dur);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(gain, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(g);
+      g.connect(sfxGain);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    }
+
+    function startMusic(){
+      if (!audioCtx || !musicEnabled) return;
+      stopMusic();
+      const base = 220;
+      const seq = [0, 5, 7, 12, 7, 5];
+      let i = 0;
+      const osc = audioCtx.createOscillator();
+      const lfo = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      const filt = audioCtx.createBiquadFilter();
+
+      osc.type = 'triangle';
+      lfo.type = 'sine';
+      lfo.frequency.value = 5.0;
+      filt.type = 'lowpass';
+      filt.frequency.value = 1200;
+
+      const lfoGain = audioCtx.createGain();
+      lfoGain.gain.value = 8;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+
+      g.gain.value = 0.0001;
+      osc.connect(filt);
+      filt.connect(g);
+      g.connect(musicGain);
+
+      osc.start();
+      lfo.start();
+
+      let next = audioCtx.currentTime;
+      const step = 0.26;
+      const timer = setInterval(() => {
+        if (!audioCtx) return;
+        if (!musicEnabled) return;
+        while (next < audioCtx.currentTime + 0.2) {
+          const semis = seq[i % seq.length];
+          const f = base * Math.pow(2, semis/12);
+          osc.frequency.setValueAtTime(f, next);
+          g.gain.cancelScheduledValues(next);
+          g.gain.setValueAtTime(0.0001, next);
+          g.gain.exponentialRampToValueAtTime(0.22, next + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, next + step);
+          i++;
+          next += step;
+        }
+      }, 60);
+
+      musicNode = { osc, lfo, timer };
+    }
+
+    function stopMusic(){
+      if (!musicNode || !audioCtx) return;
+      try{ clearInterval(musicNode.timer); }catch{}
+      try{ musicNode.osc.stop(); }catch{}
+      try{ musicNode.lfo.stop(); }catch{}
+      musicNode = null;
+    }
+
+    // ---------- Game state ----------
+    const clamp = (v,a,b) => Math.max(a, Math.min(b,v));
+    const rand = (a,b) => a + Math.random()*(b-a);
+    const now = () => performance.now();
+
+    const decisionNames = [
+      'Andare con i malesseri',
+      'Tiramisù',
+      'Dormire poco',
+      'Salame in scatola',
+      'Scroll infinito',
+      'Zero acqua',
+      'Comprare robe a caso',
+    ];
+
+    const bosses = [
+      { name: 'Boss: Malessere', hp: 260, pattern: 'spray' },
+      { name: 'Boss: Tiramisù', hp: 300, pattern: 'ring' },
+      { name: 'Boss: Poco Sonno', hp: 340, pattern: 'sniper' },
+      { name: 'Boss: Salame in scatola', hp: 380, pattern: 'spray2' },
+    ];
+
+    const state = {
+      running: false,
+      paused: false,
+      over: false,
+      score: 0,
+      time: 0,
+      dt: 0,
+      last: 0,
+      wave: 0,
+      bossIndex: 0,
+      bossActive: false,
+      boss: null,
+      shake: 0,
+      targetX: null,
+      targetY: null,
+    };
+
+    const player = {
+      x: 0, y: 0,
+      r: 18,
+      hp: 5,
+      inv: 0,
+      fireCd: 0,
+      lego: 0,
+      legoMax: 100,
+      specialCd: 0,
+    };
+
+    const bullets = [];
+    const ebullets = [];
+    const enemies = [];
+    const drops = [];
+    const particles = [];
+
+    function resetGame(){
+      state.running = true;
+      state.paused = false;
+      state.over = false;
+      state.score = 0;
+      state.time = 0;
+      state.dt = 0;
+      state.last = now();
+      state.wave = 0;
+      state.bossIndex = 0;
+      state.bossActive = false;
+      state.boss = null;
+      state.shake = 0;
+
+      bullets.length = 0;
+      ebullets.length = 0;
+      enemies.length = 0;
+      drops.length = 0;
+      particles.length = 0;
+
+      player.x = (window.innerWidth)/2;
+      player.y = (window.innerHeight)*0.78;
+      player.hp = 5;
+      player.inv = 0;
+      player.fireCd = 0;
+      player.lego = 0;
+      player.specialCd = 0;
+
+      syncHUD();
+      HUD.bossBar.style.display = 'none';
+    }
+
+    function syncHUD(){
+      HUD.scoreEl.textContent = String(state.score);
+      HUD.heartsEl.innerHTML = '';
+      for (let i=0;i<player.hp;i++){
+        const s = document.createElement('span');
+        s.className = 'heart';
+        s.innerHTML = heartSVG();
+        HUD.heartsEl.appendChild(s);
+      }
+      const pct = clamp(player.lego/player.legoMax, 0, 1);
+      HUD.legoFillEl.style.width = (pct*100).toFixed(1) + '%';
+
+      HUD.btnSound.textContent = audioEnabled ? '🔈' : '🔇';
+    }
+
+    function heartSVG(){
+      return `
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path fill="#ff4fb1" d="M12 21s-7.2-4.4-9.7-8.6C.5 8.9 2.2 6 5.3 5.4c1.7-.3 3.3.4 4.3 1.6 1-1.2 2.6-1.9 4.3-1.6 3.1.6 4.8 3.5 3 7C19.2 16.6 12 21 12 21z"/>
+      </svg>`;
+    }
+
+    // ---------- Spawning ----------
+    function spawnEnemy(){
+      const name = decisionNames[Math.floor(Math.random()*decisionNames.length)];
+      const x = rand(30, window.innerWidth-30);
+      const y = rand(-120, -30);
+      const size = rand(14, 18);
+      enemies.push({
+        kind: 'minion',
+        name,
+        x, y,
+        r: size,
+        hp: 10 + state.wave*2,
+        vx: rand(-30,30),
+        vy: rand(40,70) + state.wave*2,
+        shoot: rand(0.6, 1.6),
+        cd: rand(0.3, 1.2),
+      });
+    }
+
+    function spawnWave(){
+      state.wave++;
+      const count = clamp(4 + Math.floor(state.wave*0.6), 4, 10);
+      for (let i=0;i<count;i++) spawnEnemy();
+
+      // Drop a LEGO sometimes.
+      if (Math.random() < 0.55) spawnDrop();
+
+      // Boss every 4 waves
+      if (state.wave % 4 === 0) spawnBoss();
+    }
+
+    function spawnBoss(){
+      if (state.bossActive) return;
+      const b = bosses[state.bossIndex % bosses.length];
+      state.bossIndex++;
+      state.bossActive = true;
+      state.boss = {
+        kind:'boss',
+        name: b.name,
+        x: window.innerWidth/2,
+        y: -120,
+        r: 44,
+        hp: b.hp + state.wave*18,
+        hpMax: b.hp + state.wave*18,
+        vx: 70,
+        vy: 55,
+        pattern: b.pattern,
+        cd: 0.8,
+        t: 0,
+      };
+      HUD.bossBar.style.display = 'flex';
+      HUD.bossName.textContent = state.boss.name;
+      HUD.bossHpFill.style.width = '100%';
+
+      beep({ freq: 220, dur: 0.22, type:'sawtooth', gain:0.14, slide: 180 });
+      beep({ freq: 440, dur: 0.18, type:'triangle', gain:0.12, slide: 120, when: 0.06 });
+      state.shake = 10;
+    }
+
+    function spawnDrop(){
+      const x = rand(20, window.innerWidth-20);
+      const y = rand(-220, -60);
+      drops.push({ x, y, r: 12, vy: rand(60, 90), spin: rand(0, Math.PI*2) });
+    }
+
+    // ---------- Shooting ----------
+    function shootPlayer(){
+      const speed = 520;
+      bullets.push({ x: player.x, y: player.y - player.r - 8, vx: 0, vy: -speed, r: 6, dmg: 8 });
+      beep({ freq: 760, dur: 0.06, type:'square', gain:0.06, slide: -220 });
+    }
+
+    function shootPlayerSpecial(){
+      const speed = 560;
+      const spread = 0.28;
+      for (let k=-1;k<=1;k++){
+        bullets.push({ x: player.x, y: player.y - player.r - 8, vx: Math.sin(k*spread)*170, vy: -speed, r: 6, dmg: 10 });
+      }
+      beep({ freq: 520, dur: 0.10, type:'sawtooth', gain:0.09, slide: 220 });
+      beep({ freq: 780, dur: 0.08, type:'triangle', gain:0.08, slide: -120, when: 0.03 });
+    }
+
+    function shootEnemy(e){
+      const speed = 240;
+      const dx = player.x - e.x;
+      const dy = player.y - e.y;
+      const len = Math.hypot(dx,dy) || 1;
+      const vx = (dx/len) * speed;
+      const vy = (dy/len) * speed;
+      ebullets.push({ x: e.x, y: e.y + e.r + 4, vx, vy, r: 5, dmg: 1 });
+      beep({ freq: 300, dur: 0.05, type:'triangle', gain:0.05, slide: -60 });
+    }
+
+    function shootBoss(b){
+      const base = 240 + state.wave*8;
+      const t = b.t;
+
+      if (b.pattern === 'spray') {
+        const n = 7;
+        for (let i=0;i<n;i++){
+          const a = (-0.9 + (i/(n-1))*1.8) + Math.sin(t*0.7)*0.15;
+          ebullets.push({ x:b.x, y:b.y+b.r, vx: Math.sin(a)*base, vy: Math.cos(a)*base, r:5, dmg:1 });
+        }
+      } else if (b.pattern === 'ring') {
+        const n = 10;
+        for (let i=0;i<n;i++){
+          const a = (i/n)*Math.PI*2 + t*0.4;
+          ebullets.push({ x:b.x, y:b.y+b.r*0.6, vx: Math.cos(a)*base, vy: Math.sin(a)*base, r:5, dmg:1 });
+        }
+      } else if (b.pattern === 'sniper') {
+        const dx = player.x - b.x;
+        const dy = player.y - b.y;
+        const len = Math.hypot(dx,dy) || 1;
+        ebullets.push({ x:b.x, y:b.y+b.r, vx:(dx/len)* (base*1.3), vy:(dy/len)*(base*1.3), r:6, dmg:2 });
+      } else {
+        // spray2
+        const n = 9;
+        for (let i=0;i<n;i++){
+          const a = (-1.0 + (i/(n-1))*2.0) + Math.sin(t*1.1)*0.25;
+          ebullets.push({ x:b.x, y:b.y+b.r, vx: Math.sin(a)*base*1.05, vy: Math.cos(a)*base*1.05, r:5, dmg:1 });
+        }
+        // plus 2 side shots
+        ebullets.push({ x:b.x-22, y:b.y+b.r*0.8, vx:-base*0.35, vy:base*0.95, r:5, dmg:1 });
+        ebullets.push({ x:b.x+22, y:b.y+b.r*0.8, vx: base*0.35, vy:base*0.95, r:5, dmg:1 });
+      }
+
+      beep({ freq: 180, dur: 0.07, type:'square', gain:0.05, slide: 80 });
+    }
+
+    // ---------- Collisions ----------
+    function hitCircle(ax,ay,ar,bx,by,br){
+      const dx = ax-bx, dy = ay-by;
+      return (dx*dx + dy*dy) <= (ar+br)*(ar+br);
+    }
+
+    function explode(x,y, n=14){
+      for (let i=0;i<n;i++){
+        particles.push({
+          x, y,
+          vx: rand(-160,160),
+          vy: rand(-160,160),
+          r: rand(2,5),
+          life: rand(0.35, 0.7),
+          t: 0,
+        });
+      }
+    }
+
+    function damagePlayer(d){
+      if (player.inv > 0) return;
+      player.hp = Math.max(0, player.hp - d);
+      player.inv = 0.95;
+      state.shake = 8;
+      beep({ freq: 120, dur: 0.12, type:'sawtooth', gain:0.09, slide: -50 });
+      syncHUD();
+      if (player.hp <= 0) endGame();
+    }
+
+    function addScore(v){
+      state.score += v;
+      HUD.scoreEl.textContent = String(state.score);
+    }
+
+    function addLego(v){
+      player.lego = clamp(player.lego + v, 0, player.legoMax);
+      const pct = player.lego/player.legoMax;
+      HUD.legoFillEl.style.width = (pct*100).toFixed(1) + '%';
+      if (player.lego >= player.legoMax && player.specialCd <= 0){
+        // Auto-trigger special
+        player.lego = 0;
+        player.specialCd = 2.4;
+        shootPlayerSpecial();
+        explode(player.x, player.y-26, 18);
+        addScore(25);
+      }
+    }
+
+    function endGame(){
+      state.over = true;
+      state.running = false;
+      UI.finalScore.textContent = String(state.score);
+      UI.over.style.display = 'flex';
+      HUD.bossBar.style.display = 'none';
+      beep({ freq: 140, dur: 0.28, type:'triangle', gain:0.10, slide: -40 });
+    }
+
+    // ---------- Drawing (puffy pink) ----------
+    function clear(){
+      const w = window.innerWidth, h = window.innerHeight;
+      // Background gradient
+      const g = ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0, '#ffe6f2');
+      g.addColorStop(0.55, '#ffd1e8');
+      g.addColorStop(1, '#ffb3db');
+      ctx.fillStyle = g;
+      ctx.fillRect(0,0,w,h);
+
+      // Puffy clouds
+      for (let i=0;i<5;i++){
+        const x = (state.time*10 + i*180) % (w+220) - 110;
+        const y = 40 + i*28;
+        drawCloud(x, y, 1.0 - i*0.06);
+      }
+
+      // Soft vignette
+      ctx.fillStyle = 'rgba(59,11,42,0.06)';
+      ctx.fillRect(0,0,w,1);
+    }
+
+    function drawCloud(x,y, s){
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.scale(s,s);
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = '#fff';
+      roundedBlob(0,0, 52, 24);
+      roundedBlob(30,-10, 34, 20);
+      roundedBlob(-30,-8, 32, 18);
+      roundedBlob(10,10, 38, 20);
+      ctx.restore();
+    }
+
+    function roundedBlob(x,y, w,h){
+      ctx.beginPath();
+      ctx.ellipse(x,y, w, h, 0, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawRitaAvatar(){
+      // Cute "Rita" badge at bottom-left as a tiny reminder.
+      const x = 14, y = window.innerHeight - 18;
+      ctx.save();
+      ctx.translate(x,y);
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = 'rgba(255,255,255,0.65)';
+      roundRect(0,-28, 92, 28, 14);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,79,177,0.25)';
+      ctx.strokeStyle = 'rgba(255,79,177,0.45)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Face (paffuta)
+      ctx.translate(16,-14);
+      ctx.fillStyle = '#ffd9c7';
+      ctx.beginPath();
+      ctx.ellipse(0,0, 10, 9, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#3b0b2a';
+      ctx.beginPath();
+      ctx.arc(-3,-1, 1.2, 0, Math.PI*2);
+      ctx.arc( 3,-1, 1.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#3b0b2a';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(0,2, 3, 0, Math.PI);
+      ctx.stroke();
+
+      // Name
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.font = '800 12px system-ui';
+      ctx.fillStyle = 'rgba(59,11,42,0.85)';
+      ctx.fillText('Rita • Firenze', 42, window.innerHeight - 24);
+      ctx.restore();
+    }
+
+    function roundRect(x,y,w,h,r){
+      r = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+r, y);
+      ctx.arcTo(x+w, y, x+w, y+h, r);
+      ctx.arcTo(x+w, y+h, x, y+h, r);
+      ctx.arcTo(x, y+h, x, y, r);
+      ctx.arcTo(x, y, x+w, y, r);
+      ctx.closePath();
+      return ctx;
+    }
+
+    function drawCat(x,y,r, blink){
+      ctx.save();
+      // Body
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = 'rgba(255,79,177,0.55)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(x, y, r*1.15, r, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Ears
+      ctx.fillStyle = '#fff';
+      tri(x-r*0.55, y-r*0.8, x-r*0.2, y-r*1.35, x-r*0.05, y-r*0.75);
+      tri(x+r*0.55, y-r*0.8, x+r*0.2, y-r*1.35, x+r*0.05, y-r*0.75);
+      ctx.fill();
+      ctx.stroke();
+
+      // Face
+      const eyeY = y - r*0.15;
+      ctx.fillStyle = '#3b0b2a';
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#3b0b2a';
+      if (blink) {
+        ctx.beginPath();
+        ctx.moveTo(x-r*0.35, eyeY);
+        ctx.lineTo(x-r*0.15, eyeY);
+        ctx.moveTo(x+r*0.35, eyeY);
+        ctx.lineTo(x+r*0.15, eyeY);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x-r*0.25, eyeY, 2.2, 0, Math.PI*2);
+        ctx.arc(x+r*0.25, eyeY, 2.2, 0, Math.PI*2);
+        ctx.fill();
+      }
+      // Nose
+      ctx.fillStyle = '#ff4fb1';
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x-3, y+3);
+      ctx.lineTo(x+3, y+3);
+      ctx.closePath();
+      ctx.fill();
+
+      // Whiskers
+      ctx.strokeStyle = 'rgba(59,11,42,0.65)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(x-6, y+4); ctx.lineTo(x-18, y+1);
+      ctx.moveTo(x-6, y+7); ctx.lineTo(x-18, y+7);
+      ctx.moveTo(x+6, y+4); ctx.lineTo(x+18, y+1);
+      ctx.moveTo(x+6, y+7); ctx.lineTo(x+18, y+7);
+      ctx.stroke();
+
+      // Paw sparkle
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = '#ff4fb1';
+      ctx.beginPath();
+      ctx.arc(x+r*0.9, y+r*0.25, 3.2, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function tri(x1,y1,x2,y2,x3,y3){
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.lineTo(x3,y3);
+      ctx.closePath();
+    }
+
+    function drawFurBall(b){
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.95)';
+      ctx.strokeStyle = 'rgba(255,79,177,0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      // little fuzz
+      ctx.strokeStyle = 'rgba(255,79,177,0.35)';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(b.x-8, b.y); ctx.lineTo(b.x-12, b.y-3);
+      ctx.moveTo(b.x+7, b.y+2); ctx.lineTo(b.x+11, b.y+6);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawEnemy(e){
+      ctx.save();
+      // Puffy bubble body
+      const g = ctx.createLinearGradient(e.x, e.y-e.r, e.x, e.y+e.r);
+      g.addColorStop(0, 'rgba(255,255,255,0.9)');
+      g.addColorStop(1, 'rgba(255,209,232,0.95)');
+      ctx.fillStyle = g;
+      ctx.strokeStyle = 'rgba(255,79,177,0.45)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(e.x, e.y, e.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Tiny angry face
+      ctx.strokeStyle = '#3b0b2a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(e.x-6, e.y-2); ctx.lineTo(e.x-1, e.y-5);
+      ctx.moveTo(e.x+6, e.y-2); ctx.lineTo(e.x+1, e.y-5);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(e.x, e.y+5, 6, 0, Math.PI);
+      ctx.stroke();
+
+      // Label (short)
+      ctx.font = '800 11px system-ui';
+      ctx.fillStyle = 'rgba(59,11,42,0.85)';
+      const label = shorten(e.name, 14);
+      ctx.fillText(label, e.x - ctx.measureText(label).width/2, e.y + e.r + 14);
+
+      ctx.restore();
+    }
+
+    function drawBoss(b){
+      ctx.save();
+      // Body big
+      const g = ctx.createRadialGradient(b.x-b.r*0.2, b.y-b.r*0.3, 6, b.x, b.y, b.r*1.2);
+      g.addColorStop(0, 'rgba(255,255,255,0.98)');
+      g.addColorStop(1, 'rgba(255,127,197,0.92)');
+      ctx.fillStyle = g;
+      ctx.strokeStyle = 'rgba(59,11,42,0.25)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Puffy crown-ish doodle
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.strokeStyle = 'rgba(59,11,42,0.18)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(b.x-18, b.y-b.r+12, 10, 0, Math.PI*2);
+      ctx.arc(b.x,     b.y-b.r+8,  12, 0, Math.PI*2);
+      ctx.arc(b.x+18, b.y-b.r+12, 10, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Face
+      ctx.fillStyle = '#3b0b2a';
+      ctx.beginPath();
+      ctx.arc(b.x-12, b.y-6, 3.2, 0, Math.PI*2);
+      ctx.arc(b.x+12, b.y-6, 3.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = '#3b0b2a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y+12, 14, 0, Math.PI);
+      ctx.stroke();
+
+      // Name
+      ctx.font = '900 12px system-ui';
+      ctx.fillStyle = 'rgba(59,11,42,0.9)';
+      const n = shorten(b.name.replace('Boss: ', ''), 18);
+      ctx.fillText(n, b.x - ctx.measureText(n).width/2, b.y + b.r + 18);
+
+      ctx.restore();
+
+      // HUD boss bar
+      const pct = clamp(b.hp / b.hpMax, 0, 1);
+      HUD.bossHpFill.style.width = (pct*100).toFixed(1) + '%';
+    }
+
+    function drawEnemyBullet(b){
+      ctx.save();
+      ctx.fillStyle = 'rgba(59,11,42,0.9)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawDrop(d){
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.spin);
+      // LEGO brick (pastel)
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.strokeStyle = 'rgba(255,79,177,0.55)';
+      ctx.lineWidth = 2;
+      roundRect(-12,-10, 24, 20, 6);
+      ctx.fill();
+      ctx.stroke();
+      // studs
+      ctx.fillStyle = 'rgba(255,79,177,0.18)';
+      ctx.beginPath();
+      ctx.arc(-6,-8, 3, 0, Math.PI*2);
+      ctx.arc( 6,-8, 3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawParticles(){
+      for (const p of particles){
+        const a = 1 - (p.t / p.life);
+        ctx.globalAlpha = clamp(a, 0, 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function shorten(s, n){
+      if (s.length <= n) return s;
+      return s.slice(0, Math.max(0,n-1)) + '…';
+    }
+
+    // ---------- Input ----------
+    let pointerDown = false;
+
+    function setTargetFromEvent(e){
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left);
+      const y = (e.clientY - rect.top);
+      state.targetX = x;
+      state.targetY = y;
+    }
+
+    canvas.addEventListener('pointerdown', (e) => {
+      pointerDown = true;
+      ensureAudio();
+      setTargetFromEvent(e);
+    }, { passive: true });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!pointerDown) return;
+      setTargetFromEvent(e);
+    }, { passive: true });
+
+    window.addEventListener('pointerup', () => { pointerDown = false; }, { passive: true });
+
+    // ---------- UI buttons ----------
+    function show(el){ el.style.display = 'flex'; }
+    function hide(el){ el.style.display = 'none'; }
+
+    function showMenu(){ show(UI.menu); hide(UI.pause); hide(UI.over); }
+    function hideAllOverlays(){ hide(UI.menu); hide(UI.pause); hide(UI.over); }
+
+    UI.start.addEventListener('click', () => {
+      ensureAudio();
+      hideAllOverlays();
+      resetGame();
+    });
+
+    UI.how.addEventListener('click', () => {
+      ensureAudio();
+      alert('Come si gioca:\n\n• Tieni premuto e trascina: sposti il gatto.\n• Il gatto spara automaticamente palle di pelo.\n• Evita i colpi nemici.\n• Prendi i mattoncini LEGO: carichi il colpo speciale.\n\nBoss ogni 4 ondate.');
+    });
+
+    HUD.btnPause.addEventListener('click', () => {
+      if (!state.running) return;
+      state.paused = !state.paused;
+      if (state.paused) show(UI.pause); else hide(UI.pause);
+    });
+
+    UI.resume.addEventListener('click', () => { state.paused = false; hide(UI.pause); });
+    UI.restart1.addEventListener('click', () => { ensureAudio(); hideAllOverlays(); resetGame(); });
+    UI.restart2.addEventListener('click', () => { ensureAudio(); hideAllOverlays(); resetGame(); });
+    UI.backMenu.addEventListener('click', () => { showMenu(); state.running = false; });
+
+    HUD.btnSound.addEventListener('click', () => {
+      ensureAudio();
+      audioEnabled = !audioEnabled;
+      musicEnabled = audioEnabled;
+      if (!musicEnabled) stopMusic(); else startMusic();
+      syncHUD();
+    });
+
+    // ---------- Main loop ----------
+    function tick(t){
+      requestAnimationFrame(tick);
+      if (!state.running) {
+        // Render an idle background.
+        clear();
+        drawRitaAvatar();
+        return;
+      }
+      if (state.paused || state.over) return;
+
+      const tn = now();
+      state.dt = Math.min(0.033, (tn - state.last) / 1000);
+      state.last = tn;
+      state.time += state.dt;
+
+      update(state.dt);
+      render();
+    }
+
+    function update(dt){
+      // Spawn logic: keep combat going
+      if (!state.bossActive && enemies.length < 3) {
+        spawnWave();
+      }
+
+      // Player movement: follow target (smooth)
+      const w = window.innerWidth, h = window.innerHeight;
+      if (state.targetX != null && state.targetY != null) {
+        const speed = 13;
+        player.x += (state.targetX - player.x) * clamp(speed*dt, 0, 1);
+        player.y += (state.targetY - player.y) * clamp(speed*dt, 0, 1);
+      }
+      player.x = clamp(player.x, 22, w-22);
+      player.y = clamp(player.y, 60, h-22);
+
+      if (player.inv > 0) player.inv = Math.max(0, player.inv - dt);
+      if (player.specialCd > 0) player.specialCd = Math.max(0, player.specialCd - dt);
+
+      // Auto-fire
+      player.fireCd -= dt;
+      const fireRate = 0.14; // seconds
+      if (player.fireCd <= 0) {
+        player.fireCd = fireRate;
+        shootPlayer();
+      }
+
+      // Update bullets
+      for (let i=bullets.length-1;i>=0;i--){
+        const b = bullets[i];
+        b.x += b.vx*dt;
+        b.y += b.vy*dt;
+        if (b.y < -40 || b.x < -60 || b.x > w+60) bullets.splice(i,1);
+      }
+
+      for (let i=ebullets.length-1;i>=0;i--){
+        const b = ebullets[i];
+        b.x += b.vx*dt;
+        b.y += b.vy*dt;
+        if (b.y > h+80 || b.x < -80 || b.x > w+80) { ebullets.splice(i,1); continue; }
+        if (hitCircle(b.x,b.y,b.r, player.x,player.y, player.r)) {
+          ebullets.splice(i,1);
+          damagePlayer(b.dmg);
+        }
+      }
+
+      // Enemies
+      for (let i=enemies.length-1;i>=0;i--){
+        const e = enemies[i];
+        e.x += e.vx*dt;
+        e.y += e.vy*dt;
+        if (e.x < 20 || e.x > w-20) e.vx *= -1;
+        if (e.y > h + 80) {
+          enemies.splice(i,1);
+          continue;
+        }
+        e.cd -= dt;
+        if (e.cd <= 0) {
+          e.cd = e.shoot;
+          shootEnemy(e);
+        }
+
+        // Bullet hits
+        for (let j=bullets.length-1;j>=0;j--){
+          const b = bullets[j];
+          if (hitCircle(b.x,b.y,b.r, e.x,e.y,e.r)){
+            bullets.splice(j,1);
+            e.hp -= b.dmg;
+            explode(b.x, b.y, 6);
+            beep({ freq: 640, dur: 0.04, type:'triangle', gain:0.05, slide: 80 });
+            if (e.hp <= 0){
+              explode(e.x, e.y, 18);
+              addScore(10);
+              enemies.splice(i,1);
+              if (Math.random() < 0.22) spawnDrop();
+              break;
+            }
+          }
+        }
+
+        // Contact damage
+        if (hitCircle(e.x,e.y,e.r, player.x,player.y, player.r)) {
+          enemies.splice(i,1);
+          explode(e.x, e.y, 14);
+          damagePlayer(1);
+        }
+      }
+
+      // Boss
+      if (state.bossActive && state.boss) {
+        const b = state.boss;
+        b.t += dt;
+
+        // Move in, then hover
+        if (b.y < 120) {
+          b.y += b.vy*dt;
+        } else {
+          b.x += b.vx*dt;
+          if (b.x < 60 || b.x > w-60) b.vx *= -1;
+          b.y = 120 + Math.sin(b.t*1.2)*10;
+        }
+
+        // Boss shooting
+        b.cd -= dt;
+        const baseCd = clamp(0.92 - state.wave*0.02, 0.45, 0.92);
+        if (b.cd <= 0 && b.y >= 110) {
+          b.cd = baseCd;
+          shootBoss(b);
+        }
+
+        // Boss hit
+        for (let j=bullets.length-1;j>=0;j--){
+          const bb = bullets[j];
+          if (hitCircle(bb.x,bb.y,bb.r, b.x,b.y,b.r)){
+            bullets.splice(j,1);
+            b.hp -= bb.dmg;
+            explode(bb.x, bb.y, 7);
+            addScore(1);
+            if (b.hp <= 0){
+              explode(b.x,b.y, 46);
+              addScore(120);
+              state.bossActive = false;
+              state.boss = null;
+              HUD.bossBar.style.display = 'none';
+              beep({ freq: 260, dur: 0.16, type:'sawtooth', gain:0.10, slide: 220 });
+              beep({ freq: 520, dur: 0.14, type:'triangle', gain:0.09, slide: 180, when:0.04 });
+              // reward
+              spawnDrop();
+              spawnDrop();
+              break;
+            }
+          }
+        }
+
+        // Contact
+        if (hitCircle(b.x,b.y,b.r, player.x,player.y, player.r)) {
+          damagePlayer(2);
+        }
+      }
+
+      // Drops
+      for (let i=drops.length-1;i>=0;i--){
+        const d = drops[i];
+        d.y += d.vy*dt;
+        d.spin += dt*1.6;
+        if (d.y > h + 40) { drops.splice(i,1); continue; }
+        if (hitCircle(d.x,d.y,d.r, player.x,player.y, player.r+4)) {
+          drops.splice(i,1);
+          addLego(40);
+          explode(player.x, player.y, 10);
+          beep({ freq: 880, dur: 0.07, type:'sine', gain:0.06, slide: 60 });
+        }
+      }
+
+      // Particles
+      for (let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.t += dt;
+        p.x += p.vx*dt;
+        p.y += p.vy*dt;
+        p.vx *= (1 - dt*2.6);
+        p.vy *= (1 - dt*2.6);
+        if (p.t >= p.life) particles.splice(i,1);
+      }
+
+      // Screen shake
+      state.shake = Math.max(0, state.shake - dt*24);
+    }
+
+    function render(){
+      const w = window.innerWidth, h = window.innerHeight;
+      clear();
+
+      // shake
+      if (state.shake > 0){
+        const s = state.shake;
+        ctx.save();
+        ctx.translate(rand(-s, s), rand(-s, s));
+      }
+
+      // Draw drops
+      for (const d of drops) drawDrop(d);
+
+      // Draw enemies
+      for (const e of enemies) drawEnemy(e);
+
+      // Boss
+      if (state.bossActive && state.boss) drawBoss(state.boss);
+
+      // Bullets
+      for (const b of bullets) drawFurBall(b);
+      for (const b of ebullets) drawEnemyBullet(b);
+
+      // Player (blink when invulnerable)
+      const blink = (player.inv > 0) && (Math.floor(state.time*16) % 2 === 0);
+      ctx.globalAlpha = (player.inv > 0) ? 0.85 : 1;
+      drawCat(player.x, player.y, player.r, blink);
+      ctx.globalAlpha = 1;
+
+      // particles
+      drawParticles();
+
+      // End shake scope
+      if (state.shake > 0) ctx.restore();
+
+      // Rita badge
+      drawRitaAvatar();
+    }
+
+    // ---------- Boot ----------
+    function init(){
+      resize();
+      showMenu();
+      resetHeartsDom();
+      requestAnimationFrame(tick);
+    }
+
+    function resetHeartsDom(){
+      HUD.heartsEl.innerHTML = '';
+      for (let i=0;i<player.hp;i++){
+        const s = document.createElement('span');
+        s.className = 'heart';
+        s.innerHTML = heartSVG();
+        HUD.heartsEl.appendChild(s);
+      }
+    }
+
+    // Prevent iOS scroll on double tap
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const nowT = Date.now();
+      if (nowT - lastTouchEnd <= 300) e.preventDefault();
+      lastTouchEnd = nowT;
+    }, { passive: false });
+
+    init();
+  })();
+  </script>
+</body>
+</html>
